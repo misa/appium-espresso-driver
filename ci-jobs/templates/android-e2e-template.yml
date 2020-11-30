@@ -2,14 +2,16 @@
 parameters:
   script: echo "NO TEST SCRIPT WAS PROVIDED" && exit 1
   name: 'android_e2e_tests'
-  vmImage: 'macOS-10.14'
-  MOCHA_FILE: 'mocha-test-results.xml'
+  vmImage: 'macOS-10.15'
+  MOCHA_FILE: 'sdk-$(ANDROID_SDK_VERSION)-test-results.xml'
   CHROMEDRIVER_VERSION: 2.44
   NODE_VERSION: 10.x
   ANDROID_SDK_VERSION: 28
-
+  ANDROID_FLAVOUR: default
+  ANDROID_ARCH: x86
 jobs:
   - job: ${{ parameters.name }}
+    timeoutInMinutes: 120
     pool:
       vmImage: ${{ parameters.vmImage }}
     variables:
@@ -23,15 +25,21 @@ jobs:
         versionSpec: ${{ parameters.NODE_VERSION }}
     - script: npm install --chromedriver_version="${{ parameters.CHROMEDRIVER_VERSION }}"
       displayName: Install Node dependencies
+    - script: npm install --no-save mjpeg-consumer
+      displayName: Install MJPEG Consumer
     - script: npm test
       displayName: NPM Test
-    - script: npm install -g mjpeg-consumer
-      displayName: Install MJPEG Consumer
+    - script: $ANDROID_HOME/tools/bin/sdkmanager --list
+      displayName: List SDKs
     - script: bash ci-jobs/scripts/start-emulator.sh
       displayName: Create and run Emulator
-    - script: npm run build
-      displayName: Build
+      env:
+        ANDROID_FLAVOUR: ${{ parameters.ANDROID_FLAVOUR }}
+        ANDROID_ARCH: ${{ parameters.ANDROID_ARCH }}
     - script: ${{ parameters.script }}
+      env:
+        JAVA_HOME: $(JAVA_HOME_11_X64)
+        PATH: $(JAVA_HOME_11_X64)/bin:$(PATH)
       displayName: Run tests
     - task: PublishTestResults@2
       condition: always()
